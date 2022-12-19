@@ -19,19 +19,6 @@
       <section style="font-weight: lighter">
         <b-field label="Step 1: choose the network">
           <b-tooltip
-            label="Initial testnet (chain ID 3333)"
-            type="is-light"
-            position="is-bottom"
-          >
-            <b-radio
-              v-model="chain"
-              native-value="testnet"
-              @input="clearAccount"
-            >
-              Testnet
-            </b-radio>
-          </b-tooltip>
-          <b-tooltip
             label="Galileo is our second testnet (chain ID 3334)"
             type="is-light"
             position="is-bottom"
@@ -56,7 +43,6 @@
           </b-tooltip>
         </b-field>
 
-
         <p v-if="network !== 'mainnet'" style="text-align: left">
           You can get test tokens from our
           <a :href="faucetUrl" target="_blank">faucet</a>.
@@ -64,28 +50,7 @@
         <br />
 
 
-        <b-field
-          v-show="chain === 'testnet'"
-          label="Step 2: claim your domain"
-          type="is-success"
-          :message="claimMessage"
-        >
-          <b-input
-            v-model="domainToClaim"
-            placeholder="Domain name"
-            expanded
-          ></b-input>
-          <p class="control">
-            <span class="button is-static">.w3q</span>
-          </p>
-          <p class="control" @click="onClaim">
-            <b-button type="is-primary" label="Claim" />
-          </p>
-        </b-field>
-        <b-field
-          v-show="chain === 'galileo'"
-          label="Step 2: register your domain"
-        >
+        <b-field label="Step 2: register your domain">
           <p style="text-align: left">
             Go to
             <a href="https://galileo.web3q.io/w3ns.w3q/" target="_blank">W3NS</a>
@@ -230,13 +195,6 @@ import { parseTerm } from "@/utils/Search";
 
 const nameServiceContractInfo = {
   mainnet: {},
-  testnet: {
-    address: "0x5095135E861845dee965141fEA9061F38C85c699",
-    abi: [
-      "function claimBy(bytes memory name) public",
-      "function setPointer(bytes32 node, address addr) public",
-    ],
-  },
   galileo: {
     address: "0x076B3e04dd300De7db95Ba3F5db1eD31f3139aE0",
     abi: ["function setWebHandler(bytes32 node, address handler) external"],
@@ -258,10 +216,6 @@ const nameServiceContractInfo = {
 };
 const directoryFactoryContractInfo = {
   mainnet: {},
-  testnet: {
-    address: "0x7906895532c9Fc4D423f3d5E78672CAd3EB44F91",
-    abi: ["function create() public returns (address)"],
-  },
   galileo: {
     address: "0x1CA0e8be165360296a23907BB482c6640D3aC6ad",
     abi: ["function create() public returns (address)"],
@@ -331,12 +285,6 @@ export default {
       }
 
       const networks = {
-        testnet: [
-          "0xd05",
-          "Web3Q Testnet",
-          "https://testnet.web3q.io:8545/",
-          "https://explorer.testnet.web3q.io/",
-        ],
         galileo: [
           "0xd06",
           "Web3Q Galileo Testnet",
@@ -460,24 +408,6 @@ export default {
       return true;
     },
 
-    async onClaim() {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      // TODO: validation and stuff
-      const domainInBytes = stringToHex(this.domainToClaim);
-      const nsContract = new ethers.Contract(
-        nameServiceContractInfo[this.network].address,
-        nameServiceContractInfo[this.network].abi,
-        provider
-      );
-      const contractWithSigner = nsContract.connect(provider.getSigner());
-      const receipt = await this._doTx(() =>
-        contractWithSigner.claimBy(domainInBytes)
-      );
-      if (receipt) {
-        this.claimedDomain = this.domainToClaim;
-        this.claimed = true;
-      }
-    },
     async onDeploy() {
       if (this.chain === "galileo" && this.network !== "galileo") {
         const value = await this.changeToGalileo();
@@ -519,11 +449,7 @@ export default {
       const contractWithSigner = nsContract.connect(provider.getSigner());
 
       let domain, action;
-      if (this.network === "testnet") {
-        domain = stringToHex(this.claimedDomain);
-        domain = domain + "0".repeat(66 - domain.length);
-        action = contractWithSigner.setPointer;
-      } else if (this.network === "galileo") {
+      if (this.network === "galileo") {
         // w3ns
         const domainName = `${this.claimedDomain}.w3q`;
         const inputType = parseTerm(domainName, 'w3q');
@@ -612,11 +538,6 @@ export default {
     },
   },
   computed: {
-    claimMessage() {
-      return this.claimed && this.claimedDomain
-        ? `Domain "${this.claimedDomain}" has been successfully claimed`
-        : "";
-    },
     deployMessage() {
       return this.deployed && this.deployedHandler
         ? `Handler deployed at ${this.deployedHandler}`
